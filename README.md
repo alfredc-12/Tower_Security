@@ -9,10 +9,11 @@ An interactive browser adaptation of the three authored Blender tower compounds.
 - **Space / C:** fly up / down; **Shift:** faster movement.
 - **E:** interact with the object under the crosshair.
 - At a **keypad**, E moves closer and opens the PIN controls. The public demo code is **1234**.
-- At a **cabinet**, the first E opens it; E again inspects its contents. Choose an equipment name to look more closely.
+- At a **cabinet**, the first E opens it; E again inspects its contents. Open **Items** to choose equipment, and **About** for its description.
 - **R:** close the cabinet under the crosshair.
 - **Escape:** leave inspection or release the mouse.
 - Touch devices support dragging to look, movement buttons, and Use/inspect.
+- The top-right menu contains controls and Return to entrance. During inspection, the back arrow returns to exploration.
 
 This is a presentation simulation. The PIN is public and is not real authentication. Security devices are visual models and do not control or record real equipment. The original Blender file is preserved; the web adaptation adds keypad access in place of the gate key.
 

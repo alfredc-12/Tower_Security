@@ -50,52 +50,52 @@ function currentBoxes(){
  for(const d of doors){box.setFromObject(d.node);boxes.push({min:box.min.toArray(),max:box.max.toArray()});}
  return boxes;
 }
-function showPause(){if(!started||inspection)return;paused=true;keys.clear();$('pause').hidden=false;$('crosshair').hidden=true;$('target').hidden=true;}
-function capture(){if(!ready)return;paused=false;$('pause').hidden=true;$('crosshair').hidden=false;if(!touch){try{controls.lock();}catch{notify('Click the scene to enable mouse look.');}}}
-function start(){if(!ready)return;started=true;$('welcome').hidden=true;if(touch)$('touch').hidden=false;camera.position.set(0,EYE_HEIGHT,10);camera.lookAt(0,EYE_HEIGHT,0);setMode('walk',false);capture();}
+function showPause(){if(!started||inspection)return;paused=true;keys.clear();if(controls.isLocked)controls.unlock();document.body.classList.add('paused');$('pause').hidden=false;$('crosshair').hidden=true;$('target').hidden=true;}
+function capture(){if(!ready)return;paused=false;document.body.classList.remove('paused');$('pause').hidden=true;$('crosshair').hidden=false;if(!touch){try{controls.lock();}catch{notify('Drag to look around.');}}}
+function start(){if(!ready)return;started=true;document.body.classList.add('started');$('reset').disabled=false;$('welcome').hidden=true;if(touch)$('touch').hidden=false;camera.position.set(0,EYE_HEIGHT,10);camera.lookAt(0,EYE_HEIGHT,0);setMode('walk',false);capture();}
 controls.addEventListener('unlock',showPause);
-controls.addEventListener('lock',()=>{paused=false;$('pause').hidden=true;});
+controls.addEventListener('lock',()=>{paused=false;document.body.classList.remove('paused');$('pause').hidden=true;});
 document.addEventListener('pointerlockerror',()=>{if(!inspection)notify('Mouse capture is unavailable. Drag on the scene to look around.');});
 function setMode(next,announce=true){
  if(inspection)leaveInspection(false);
  mode=next;keys.clear();
  if(ready&&next==='walk'){const p=safeWalkingPosition(camera.position,currentBoxes());camera.position.set(p.x,p.y,p.z);}
- $('walk').classList.toggle('selected',mode==='walk');$('fly').classList.toggle('selected',mode==='fly');$('mode-label').textContent=mode==='walk'?'Walking':'Flying';
- if(announce)notify(mode==='fly'?'Flying: Space up · C down · 1 to walk':'Walking: ground and obstacle collision enabled');
+ $('walk').classList.toggle('selected',mode==='walk');$('fly').classList.toggle('selected',mode==='fly');$('walk').setAttribute('aria-pressed',String(mode==='walk'));$('fly').setAttribute('aria-pressed',String(mode==='fly'));$('mode-label').textContent=mode==='walk'?'Walking':'Flying';
+ if(announce)notify(mode==='fly'?'Fly mode':'Walk mode');
 }
 function tweenTo(position,target,onComplete){dummy.position.copy(position);dummy.lookAt(target);transition={from:camera.position.clone(),to:position.clone(),q0:camera.quaternion.clone(),q1:dummy.quaternion.clone(),elapsed:0,duration:matchMedia('(prefers-reduced-motion:reduce)').matches?.05:.75,onComplete};}
 function beginInspection(kind,t,item=null){
  if(!inspection){savedPose={position:camera.position.clone(),quaternion:camera.quaternion.clone()};}
- inspection={kind,tower:t,item};paused=true;keys.clear();controls.unlock();$('pause').hidden=true;$('target').hidden=true;$('crosshair').hidden=true;$('inspection').hidden=false;
+ inspection={kind,tower:t,item};paused=true;keys.clear();controls.unlock();clearTimeout(toastTimer);$('toast').classList.remove('visible');document.body.classList.add('inspecting');document.body.classList.remove('paused');$('pause').hidden=true;$('target').hidden=true;$('crosshair').hidden=true;$('inspection').hidden=false;
+ $('equipment-picker').open=false;document.querySelector('.item-details').open=false;
  $('keypad-panel').hidden=kind!=='keypad';$('equipment-panel').hidden=kind!=='service'&&kind!=='radio';$('item-panel').hidden=kind!=='item';
  let target,pos;
  if(kind==='keypad'){
   target=new THREE.Vector3(...t.keypad);pos=target.clone().add(new THREE.Vector3(.05,.02,1.12));
-  $('inspection-name').textContent=`Tower ${t.id} · Gate keypad`;$('inspection-description').textContent='Enter the demo PIN to unlock and open this gate.';
-  $('gate-state').textContent=towerState.get(t.id).unlocked?'Gate unlocked':'Gate locked';$('pin').value='';$('pin-message').textContent='';$('gate-close').hidden=!towerState.get(t.id).unlocked;
-  setTimeout(()=>$('pin').focus(),100);
+  $('inspection-name').textContent=`Tower ${t.id} · Gate keypad`;
+  $('pin').value='';$('pin-message').textContent='';syncGatePanel(t);
+  setTimeout(()=>{if(inspection?.kind==='keypad') (towerState.get(t.id).unlocked?$('keypad-done'):$('pin')).focus();},100);
  }else if(kind==='service'||kind==='radio'){
   target=new THREE.Vector3(...t.serviceFocus);if(kind==='radio')target.x+=1.22;
   pos=target.clone().add(new THREE.Vector3(.12,.10,2.45));
-  $('inspection-name').textContent=`Tower ${t.id} · ${kind==='service'?'Protected service compartment':'Telecommunications compartment'}`;
-  $('inspection-description').textContent=kind==='service'?'Visitor records and security equipment are secured inside.':'Radio and power equipment sit in their own locked bay.';
+  $('inspection-name').textContent=`Tower ${t.id} · ${kind==='service'?'Service cabinet':'Radio cabinet'}`;
+  $('equipment-picker').hidden=kind==='radio';
   $('equipment-list').replaceChildren();
   if(kind==='service')for(const item of t.items){const b=document.createElement('button');b.textContent=item.name;b.addEventListener('click',()=>beginInspection('item',t,item));$('equipment-list').append(b);}
-  else $('equipment-list').textContent='Radio and power modules, ventilation, protected cable routes and door contacts.';
  }else{
   target=new THREE.Vector3(...item.position);
   const offset=item.name==='Visitor logbook'?new THREE.Vector3(0,.40,.70):new THREE.Vector3(.02,.04,.85);
   pos=target.clone().add(offset);
-  $('inspection-name').textContent=`Tower ${t.id} · ${item.name}`;$('inspection-description').textContent='Equipment inspection';$('item-description').textContent=descriptions[item.name]||'Protected equipment in this tower enclosure.';
+  $('inspection-name').textContent=`Tower ${t.id} · ${item.name}`;$('item-description').textContent=descriptions[item.name]||'Protected equipment in this tower enclosure.';
  }
  tweenTo(pos,target);
 }
 function leaveInspection(recapture=true){
- if(!inspection)return;inspection=null;$('inspection').hidden=true;aim=null;keys.clear();
+ if(!inspection)return;inspection=null;document.body.classList.remove('inspecting');$('inspection').hidden=true;aim=null;keys.clear();
  if(savedPose){camera.position.copy(savedPose.position);camera.quaternion.copy(savedPose.quaternion);transition=null;savedPose=null;}
  if(recapture)capture();else{paused=false;$('crosshair').hidden=false;}
 }
-function toggleCabinet(t,kind,close=false){const d=doorState(t,kind);if(close||d.open){d.open=false;d.target=0;notify(`Tower ${t.id} cabinet closed`);}else{d.open=true;d.target=-THREE.MathUtils.degToRad(105);notify(`Cabinet open. Press E again to inspect its contents.`);}}
+function toggleCabinet(t,kind,close=false){const d=doorState(t,kind);if(close||d.open){d.open=false;d.target=0;notify('Cabinet closed');}else{d.open=true;d.target=-THREE.MathUtils.degToRad(105);notify('Cabinet open · E to inspect');}}
 function interact(){
  if(!ready||!started)return;
  if(inspection){if(aim?.userData.kind==='item')beginInspection('item',aim.userData.tower,aim.userData.item);return;}
@@ -107,19 +107,21 @@ function interact(){
  else if(kind==='service'||kind==='radio'){const d=state[kind];if(!d.open)toggleCabinet(t,kind);else beginInspection(kind,t);}
  else if(kind==='item')beginInspection('item',t,item);
 }
+function syncGatePanel(t){const unlocked=towerState.get(t.id).unlocked;$('gate-state').textContent=unlocked?'Unlocked':'Locked';$('pin-controls').hidden=unlocked;$('keypad-done').hidden=!unlocked;$('gate-close').hidden=!unlocked;}
 function unlockGate(){
  if(inspection?.kind!=='keypad')return;
  const t=inspection.tower,state=towerState.get(t.id);
- if(!acceptsPin($('pin').value,manifest.demoPin)){$('pin-message').textContent='Incorrect PIN. Use 1234 for this demonstration.';$('pin').select();return;}
- state.unlocked=true;state.gate.open=true;state.gate.target=Math.PI/2;$('gate-state').textContent='Gate unlocked — opening';$('pin-message').textContent='Access granted. Return to exploration to enter.';$('gate-close').hidden=false;notify(`Tower ${t.id} gate unlocked`);
+ if(!acceptsPin($('pin').value,manifest.demoPin)){$('pin-message').textContent='Incorrect PIN. Try 1234.';$('pin').select();return;}
+ state.unlocked=true;state.gate.open=true;state.gate.target=Math.PI/2;$('pin-message').textContent='';syncGatePanel(t);$('keypad-done').focus();
 }
-for(const digit of ['1','2','3','4','5','6','7','8','9','Clear','0','⌫']){const b=document.createElement('button');b.type='button';b.textContent=digit;b.setAttribute('aria-label',digit==='⌫'?'Delete last digit':digit);b.addEventListener('click',()=>{$('pin').value=digit==='Clear'?'':digit==='⌫'?$('pin').value.slice(0,-1):($('pin').value+digit).slice(0,6);});$('digits').append(b);}
+for(const digit of ['1','2','3','4','5','6','7','8','9','Clear','0','⌫']){const b=document.createElement('button');b.type='button';if(digit==='⌫')b.innerHTML='<svg class="icon" aria-hidden="true"><use href="#i-delete"/></svg>';else b.textContent=digit;b.setAttribute('aria-label',digit==='⌫'?'Delete last digit':digit);b.addEventListener('click',()=>{$('pin').value=digit==='Clear'?'':digit==='⌫'?$('pin').value.slice(0,-1):($('pin').value+digit).slice(0,6);});$('digits').append(b);}
 $('start').addEventListener('click',start);$('resume').addEventListener('click',capture);$('back').addEventListener('click',()=>leaveInspection());$('unlock').addEventListener('click',unlockGate);
+$('keypad-done').addEventListener('click',()=>leaveInspection());$('reset').disabled=true;
 $('pin').addEventListener('input',()=>{$('pin').value=$('pin').value.replace(/\D/g,'');});$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')unlockGate();});
-$('gate-close').addEventListener('click',()=>{const state=towerState.get(inspection.tower.id);state.unlocked=false;state.gate.open=false;state.gate.target=0;$('gate-state').textContent='Gate locked';$('pin-message').textContent='Gate closing and locking.';$('gate-close').hidden=true;});
-$('cabinet-close').addEventListener('click',()=>{const i=inspection;toggleCabinet(i.tower,i.kind,true);leaveInspection();});$('compartment-return').addEventListener('click',()=>beginInspection('service',inspection.tower));
+$('gate-close').addEventListener('click',()=>{const state=towerState.get(inspection.tower.id);state.unlocked=false;state.gate.open=false;state.gate.target=0;$('pin-message').textContent='';syncGatePanel(inspection.tower);$('pin').value='';$('pin').focus();});
+$('cabinet-close').addEventListener('click',()=>{const i=inspection;toggleCabinet(i.tower,i.kind,true);leaveInspection();});$('compartment-return').addEventListener('click',()=>{beginInspection('service',inspection.tower);$('equipment-picker').open=true;});
 $('fly').addEventListener('click',()=>setMode('fly'));$('walk').addEventListener('click',()=>setMode('walk'));
-$('reset').addEventListener('click',()=>{if(!ready)return;if(inspection)leaveInspection(false);camera.position.set(0,EYE_HEIGHT,10);camera.lookAt(0,EYE_HEIGHT,0);setMode('walk',false);notify('Returned to the main entrance');});
+$('reset').addEventListener('click',()=>{if(!ready||!started)return;if(inspection)leaveInspection(false);camera.position.set(0,EYE_HEIGHT,10);camera.lookAt(0,EYE_HEIGHT,0);setMode('walk',false);$('controls').close();capture();notify('At the entrance');});
 $('help').addEventListener('click',()=>{controls.unlock();showPause();$('controls').showModal();});$('close-controls').addEventListener('click',()=>$('controls').close());
 document.addEventListener('keydown',e=>{
  if(e.code==='Escape'){if(inspection){e.preventDefault();leaveInspection();}else if(started)showPause();return;}
@@ -143,7 +145,7 @@ function updateAim(){
  }
  raycaster.setFromCamera(inspection?pointer:new THREE.Vector2(0,0),camera);raycaster.far=inspection?5:4.5;
  const hit=raycaster.intersectObjects(proxies.filter(p=>p.visible),false)[0];aim=hit?.object||null;
- if(!inspection){$('target').hidden=!aim||paused;if(aim){const {kind,tower:t,name}=aim.userData;$('target-name').textContent=`Tower ${t.id} · ${name}`;const state=towerState.get(t.id);$('target-action').textContent=kind==='keypad'?'E Enter PIN':kind==='gate'?(state.unlocked?'E Open / close gate':'E Unlock with keypad'):state[kind]?.open?'E Inspect contents · R Close':'E Open cabinet';}}
+ if(!inspection){$('target').hidden=!aim||paused;if(aim){const {kind,tower:t,name}=aim.userData;$('target-name').textContent=name;const state=towerState.get(t.id);$('target-action').textContent=kind==='keypad'?'Enter PIN':kind==='gate'?(state.unlocked?'Open / close':'Unlock gate'):state[kind]?.open?'Inspect':'Open';}}
 }
 function move(dt){
  if(!started||paused||inspection||transition)return;
@@ -174,7 +176,7 @@ async function load(){try{
   proxy('radio',t,[t.center[0]+3.91,1.33,.74],[1.08,1.94,.12],'Telecommunications compartment');
   for(const item of t.items)proxy('item',t,item.position,item.size,item.name,item);
  }
- renderer.shadowMap.needsUpdate=true;ready=true;$('loading').textContent='Three compounds ready to explore.';$('start').disabled=false;$('start').textContent='Start walking';
+ renderer.shadowMap.needsUpdate=true;ready=true;$('loading').hidden=true;$('start').disabled=false;$('start').textContent='Explore';
  if(import.meta.env.DEV)window.walkthrough={camera,scene,model,manifest,towerState,proxies,controls,setMode,interact,beginInspection,unlockGate,get state(){return {ready,mode,inspection,paused,aim:aim?.userData,camera:camera.position.toArray()};}};
 }catch(error){console.error(error);$('loading').textContent='The environment could not load. Check your connection and refresh the page.';$('start').disabled=false;$('start').textContent='Reload environment';$('start').onclick=()=>location.reload();}}
 $('crosshair').hidden=true;
