@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.local/
+.impeccable/review/
+*.log
+.local-browser-results.json
+tests/browser-qa.mjs
