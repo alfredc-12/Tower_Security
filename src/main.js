@@ -166,7 +166,7 @@ window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camer
 async function load(){try{
  const base=import.meta.env.BASE_URL;
  const response=await fetch(base+'assets/scene.json');if(!response.ok)throw new Error('Scene manifest could not be loaded');manifest=await response.json();
- const gltf=await new GLTFLoader().loadAsync(base+'assets/tower-campus.glb',event=>{if(event.total)$('loading').textContent=`Loading tower geometry · ${Math.round(event.loaded/event.total*100)}%`;});model=gltf.scene;scene.add(model);model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ const gltf=await new GLTFLoader().loadAsync(base+'assets/tower-campus.glb',event=>{$('loading').textContent=`Downloading tower geometry · ${(event.loaded/1048576).toFixed(1)} MB`;});model=gltf.scene;scene.add(model);model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  for(const t of manifest.towers){const state={gate:makeDoor(t,'gate'),service:makeDoor(t,'service'),radio:makeDoor(t,'radio'),unlocked:false};towerState.set(t.id,state);
   proxy('keypad',t,t.keypad,[.34,.48,.20],'Gate keypad');keypadFace(t);
   proxy('gate',t,[t.center[0],1.2,6],[1.85,2.35,.13],'Access gate');
